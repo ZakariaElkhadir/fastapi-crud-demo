@@ -1,0 +1,223 @@
+"use client";
+import axios from "axios";
+import { useState } from "react";
+import { User, Mail, FileText, Plus, X } from "lucide-react";
+
+const API_URL = "http://127.0.0.1:8000/users";
+
+interface FormProps {
+  onUserCreated?: () => void;
+  onClose?: () => void;
+}
+
+interface FormData {
+  name: string;
+  email: string;
+  description: string;
+}
+
+const Form: React.FC<FormProps> = ({ onUserCreated, onClose }) => {
+  const [formData, setFormData] = useState<FormData>({
+    name: "",
+    email: "",
+    description: "",
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    if (error) setError(null);
+  };
+
+  const validateForm = (): boolean => {
+    if (!formData.name.trim()) {
+      setError("Name is required");
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError("Email is required");
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError("Please enter a valid email address");
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await axios.post(API_URL, formData, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("User created successfully:", response.data);
+      setSuccess(true);
+
+      setFormData({
+        name: "",
+        email: "",
+        description: "",
+      });
+
+      if (onUserCreated) {
+        onUserCreated();
+      }
+
+      setTimeout(() => {
+        setSuccess(false);
+        if (onClose) onClose();
+      }, 2000);
+    } catch (error: any) {
+      console.error("Failed to create user:", error);
+      if (error.response?.data?.detail) {
+        setError(error.response.data.detail);
+      } else {
+        setError("Failed to create user. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 flex justify-between items-center">
+        <h2 className="text-xl font-semibold flex items-center">
+          <Plus className="w-5 h-5 mr-2" />
+          Create New User
+        </h2>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="text-white hover:text-gray-200 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+      </div>
+
+      {/* Form */}
+      <div className="p-6">
+        {success && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+            User created successfully!
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Name Field */}
+          <div>
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              <User className="w-4 h-4 inline mr-1" />
+              Name *
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+              placeholder="Enter user's full name"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Email Field */}
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              <Mail className="w-4 h-4 inline mr-1" />
+              Email *
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+              placeholder="Enter user's email address"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Description Field */}
+          <div>
+            <label
+              htmlFor="description"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              <FileText className="w-4 h-4 inline mr-1" />
+              Description
+            </label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors resize-none"
+              placeholder="Enter a description for the user (optional)"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Creating User...
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                Create User
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default Form;
