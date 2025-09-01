@@ -1,6 +1,6 @@
+"""User routes: CRUD endpoints for User resources."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
 
 from .. import database, crud, schemas
 
@@ -23,6 +23,7 @@ def delete_user(user_id: int, db: Session = Depends(database.get_db)):
     if not deleted_user:
         raise HTTPException(status_code=404, detail="User not found")
     return deleted_user
+
 
 @router.put('/{user_id}', response_model=schemas.User)
 def update_user(user_id: int, user: schemas.UserCreate, db: Session = Depends(database.get_db)):

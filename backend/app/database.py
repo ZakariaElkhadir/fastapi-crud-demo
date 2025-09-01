@@ -11,7 +11,6 @@ password = os.getenv("PASSWORD")
 
 DATABASE_URL = f"postgresql://postgres:{password}@localhost/mini_project"
 
-
 engine = create_engine(
     DATABASE_URL,
     echo=True
@@ -23,6 +22,7 @@ Base = declarative_base()
 
 
 def get_db():
+    """Get a new database session."""
     db = SessionLocal()
     try:
         yield db
