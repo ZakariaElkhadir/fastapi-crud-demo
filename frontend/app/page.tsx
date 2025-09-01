@@ -34,6 +34,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editUser, setEditUser] = useState<User | null>(null);
 
   const handleUserCreated = async () => {
     const result = await fetchData();
@@ -42,13 +43,28 @@ export default function Home() {
     }
   };
 
-  const handleShowForm = () => {
+  const handleUserUpdated = async () => {
+    const result = await fetchData();
+    if (result) {
+      setData(result);
+    }
+  };
+
+  const handleShowCreateForm = () => {
+    setEditUser(null); // Clear any edit user
+    setShowForm(true);
+  };
+
+  const handleShowEditForm = (user: User) => {
+    setEditUser(user);
     setShowForm(true);
   };
 
   const handleCloseForm = () => {
     setShowForm(false);
+    setEditUser(null);
   };
+
   const handleDeleteUser = async (id: number) => {
     try {
       await axios.delete(`${API_URL}/${id}`);
@@ -73,7 +89,7 @@ export default function Home() {
         setData(result);
       } else {
         setError(
-          "Failed to fetch data. Make sure your FastAPI backend is running on http://127.0.0.1:8000"
+          "Failed to fetch data. Make sure your FastAPI backend is running on http://127.0.0.1:8000",
         );
       }
       setLoading(false);
@@ -110,7 +126,7 @@ export default function Home() {
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center">
             <h2 className="text-xl font-semibold">Manage Users</h2>
             <button
-              onClick={handleShowForm}
+              onClick={handleShowCreateForm}
               className="bg-green-500 hover:bg-green-600 transition-colors duration-200 p-2 rounded-lg shadow-md flex items-center justify-center group"
             >
               <UserPlus className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
@@ -119,7 +135,7 @@ export default function Home() {
 
           <div className="p-6">
             {data ? (
-              <div className="grid grid-cols-1  gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 {Array.isArray(data) ? (
                   data.map((user, index: number) => (
                     <div
@@ -131,8 +147,8 @@ export default function Home() {
                           {user.name
                             ? user.name.charAt(0).toUpperCase()
                             : user.email
-                            ? user.email.charAt(0).toUpperCase()
-                            : "U"}
+                              ? user.email.charAt(0).toUpperCase()
+                              : "U"}
                         </div>
                         <div>
                           <h3 className="font-semibold text-gray-800">
@@ -150,7 +166,10 @@ export default function Home() {
                         </p>
                       )}
 
-                      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                      <button
+                        onClick={() => handleShowEditForm(user)}
+                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                      >
                         Edit User
                       </button>
                       <button
@@ -179,13 +198,16 @@ export default function Home() {
             )}
           </div>
         </section>
+
         {/* Modal Form Overlay */}
         {showForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="w-full max-w-md">
               <Form
                 onUserCreated={handleUserCreated}
+                onUserUpdated={handleUserUpdated}
                 onClose={handleCloseForm}
+                editUser={editUser}
               />
             </div>
           </div>

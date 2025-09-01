@@ -1,13 +1,22 @@
 "use client";
 import axios from "axios";
-import { useState } from "react";
-import { User, Mail, FileText, Plus, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { User, Mail, FileText, Plus, X, Edit } from "lucide-react";
 
 const API_URL = "http://127.0.0.1:8000/users";
 
 interface FormProps {
   onUserCreated?: () => void;
+  onUserUpdated?: () => void;
   onClose?: () => void;
+  editUser?: User | null;
+}
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  description?: string;
 }
 
 interface FormData {
@@ -16,7 +25,12 @@ interface FormData {
   description: string;
 }
 
-const Form: React.FC<FormProps> = ({ onUserCreated, onClose }) => {
+const Form: React.FC<FormProps> = ({
+  onUserCreated,
+  onUserUpdated,
+  onClose,
+  editUser,
+}) => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
@@ -26,6 +40,26 @@ const Form: React.FC<FormProps> = ({ onUserCreated, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  const isEditMode = !!editUser;
+
+  useEffect(() => {
+    if (editUser) {
+      setFormData({
+        name: editUser.name || "",
+        email: editUser.email || "",
+        description: editUser.description || "",
+      });
+    } else {
+      setFormData({
+        name: "",
+        email: "",
+        description: "",
+      });
+    }
+    setIsInitialized(true);
+  }, [editUser?.id]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -63,23 +97,41 @@ const Form: React.FC<FormProps> = ({ onUserCreated, onClose }) => {
     setError(null);
 
     try {
-      const response = await axios.post(API_URL, formData, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      let response;
 
-      console.log("User created successfully:", response.data);
+      if (isEditMode && editUser) {
+        response = await axios.put(`${API_URL}/${editUser.id}`, formData, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        console.log("User updated successfully:", response.data);
+
+        if (onUserUpdated) {
+          onUserUpdated();
+        }
+      } else {
+        // Create new user
+        response = await axios.post(API_URL, formData, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        console.log("User created successfully:", response.data);
+
+        if (onUserCreated) {
+          onUserCreated();
+        }
+      }
+
       setSuccess(true);
 
-      setFormData({
-        name: "",
-        email: "",
-        description: "",
-      });
-
-      if (onUserCreated) {
-        onUserCreated();
+      if (!isEditMode) {
+        setFormData({
+          name: "",
+          email: "",
+          description: "",
+        });
       }
 
       setTimeout(() => {
@@ -87,24 +139,48 @@ const Form: React.FC<FormProps> = ({ onUserCreated, onClose }) => {
         if (onClose) onClose();
       }, 2000);
     } catch (error: any) {
-      console.error("Failed to create user:", error);
+      console.error(
+        `Failed to ${isEditMode ? "update" : "create"} user:`,
+        error,
+      );
       if (error.response?.data?.detail) {
         setError(error.response.data.detail);
       } else {
-        setError("Failed to create user. Please try again.");
+        setError(
+          `Failed to ${isEditMode ? "update" : "create"} user. Please try again.`,
+        );
       }
     } finally {
       setLoading(false);
     }
   };
 
+  if (!isInitialized) {
+    return null;
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 flex justify-between items-center">
+      <div
+        className={`${
+          isEditMode
+            ? "bg-gradient-to-r from-blue-600 to-blue-700"
+            : "bg-gradient-to-r from-green-600 to-green-700"
+        } text-white px-6 py-4 flex justify-between items-center`}
+      >
         <h2 className="text-xl font-semibold flex items-center">
-          <Plus className="w-5 h-5 mr-2" />
-          Create New User
+          {isEditMode ? (
+            <>
+              <Edit className="w-5 h-5 mr-2" />
+              Edit User
+            </>
+          ) : (
+            <>
+              <Plus className="w-5 h-5 mr-2" />
+              Create New User
+            </>
+          )}
         </h2>
         {onClose && (
           <button
@@ -120,7 +196,7 @@ const Form: React.FC<FormProps> = ({ onUserCreated, onClose }) => {
       <div className="p-6">
         {success && (
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            User created successfully!
+            User {isEditMode ? "updated" : "created"} successfully!
           </div>
         )}
 
@@ -147,7 +223,9 @@ const Form: React.FC<FormProps> = ({ onUserCreated, onClose }) => {
               value={formData.name}
               onChange={handleInputChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 ${
+                isEditMode ? "focus:ring-blue-500" : "focus:ring-green-500"
+              } focus:border-transparent transition-colors`}
               placeholder="Enter user's full name"
               disabled={loading}
             />
@@ -169,7 +247,9 @@ const Form: React.FC<FormProps> = ({ onUserCreated, onClose }) => {
               value={formData.email}
               onChange={handleInputChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 ${
+                isEditMode ? "focus:ring-blue-500" : "focus:ring-green-500"
+              } focus:border-transparent transition-colors`}
               placeholder="Enter user's email address"
               disabled={loading}
             />
@@ -190,7 +270,9 @@ const Form: React.FC<FormProps> = ({ onUserCreated, onClose }) => {
               value={formData.description}
               onChange={handleInputChange}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors resize-none"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 ${
+                isEditMode ? "focus:ring-blue-500" : "focus:ring-green-500"
+              } focus:border-transparent transition-colors resize-none`}
               placeholder="Enter a description for the user (optional)"
               disabled={loading}
             />
@@ -200,17 +282,30 @@ const Form: React.FC<FormProps> = ({ onUserCreated, onClose }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center"
+            className={`w-full ${
+              isEditMode
+                ? "bg-blue-500 hover:bg-blue-600"
+                : "bg-green-500 hover:bg-green-600"
+            } disabled:bg-gray-400 text-white font-semibold py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center`}
           >
             {loading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Creating User...
+                {isEditMode ? "Updating User..." : "Creating User..."}
               </>
             ) : (
               <>
-                <Plus className="w-4 h-4 mr-2" />
-                Create User
+                {isEditMode ? (
+                  <>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Update User
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create User
+                  </>
+                )}
               </>
             )}
           </button>
